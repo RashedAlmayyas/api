@@ -15,7 +15,6 @@ $stid = oci_parse($conn, $query);
 oci_execute($stid);
 
 while ($invoice_data = oci_fetch_assoc($stid)) {
-    // إزالة الفراغات من كل عنصر في بيانات الفاتورة
     $invoice_data = array_map('trim', $invoice_data);
 
     $header_id = $invoice_data['ID'];
@@ -24,132 +23,184 @@ while ($invoice_data = oci_fetch_assoc($stid)) {
     $item_stmt = oci_parse($conn, $queryItems);
     oci_bind_by_name($item_stmt, ":header_id", $header_id);
     oci_execute($item_stmt);
-    $dom = new DOMDocument("1.0", "UTF-8");
-    $dom->formatOutput = true;
-    $invoice = $dom->createElement("Invoice");
-    $invoice->setAttribute("xmlns", "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2");
-    $invoice->setAttribute("xmlns:cac", "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2");
-    $invoice->setAttribute("xmlns:cbc", "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2");
-    $invoice->setAttribute("xmlns:ext", "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2");
-    $profileID = $dom->createElement("cbc:ProfileID", "reporting:1.0");
-    $invoice->appendChild($profileID);
-    $id = $dom->createElement("cbc:ID", htmlspecialchars($invoice_data['ID']));
-    $invoice->appendChild($id);
-    $uuid = $dom->createElement("cbc:UUID", htmlspecialchars($invoice_data['UUID']));
-    $invoice->appendChild($uuid);
-    $oracleDate = $invoice_data['ISSUEDATE'];
-    $isoDate = date('Y-m-d', strtotime($oracleDate));
-    $issueDate = $dom->createElement("cbc:IssueDate", $isoDate);
-    $invoice->appendChild($issueDate);
-    $invoiceTypeCode = $dom->createElement("cbc:InvoiceTypeCode", $invoice_data['INVOICETYPECODE']);
-    $invoiceTypeCode->setAttribute("name", $invoice_data['PRE_INVOICETYPECODE']);
-    $invoice->appendChild($invoiceTypeCode);
-    $note = $dom->createElement("cbc:Note", htmlspecialchars($invoice_data['NOTE']));
-    $invoice->appendChild($note);
-    $currencyCode = $dom->createElement("cbc:DocumentCurrencyCode", "JOD");
-    $invoice->appendChild($currencyCode);
-    $taxCurrencyCode = $dom->createElement("cbc:TaxCurrencyCode", "JOD");
-    $invoice->appendChild($taxCurrencyCode);
-    $additionalDocRef = $dom->createElement("cac:AdditionalDocumentReference");
-    $docRefID = $dom->createElement("cbc:ID", "ICV");
-    $additionalDocRef->appendChild($docRefID);
-    $docRefUUID = $dom->createElement("cbc:UUID", $invoice_data['UUID']);
-    $additionalDocRef->appendChild($docRefUUID);
-    $invoice->appendChild($additionalDocRef);
-    $supplier = $dom->createElement("cac:AccountingSupplierParty");
-    $party = $dom->createElement("cac:Party");
-    $postalAddress = $dom->createElement("cac:PostalAddress");
-    $country = $dom->createElement("cac:Country");
-    $countryCode = $dom->createElement("cbc:IdentificationCode", "JO");
-    $country->appendChild($countryCode);
-    $postalAddress->appendChild($country);
-    $party->appendChild($postalAddress);
-    $taxScheme = $dom->createElement("cac:PartyTaxScheme");
-    $companyID = $dom->createElement("cbc:CompanyID",htmlspecialchars($invoice_data['COMPANYID']));
-    $taxScheme->appendChild($companyID);
-    $scheme = $dom->createElement("cac:TaxScheme");
-    $schemeID = $dom->createElement("cbc:ID", "VAT");
-    $scheme->appendChild($schemeID);
-    $taxScheme->appendChild($scheme);
-    $party->appendChild($taxScheme);
-    $legalEntity = $dom->createElement("cac:PartyLegalEntity");
-    $regName = $dom->createElement("cbc:RegistrationName", $invoice_data['REGISTRATIONNAMEBUYER']);
-    $legalEntity->appendChild($regName);
-    $party->appendChild($legalEntity);
-    $supplier->appendChild($party);
-    $invoice->appendChild($supplier);
-    $customer = $dom->createElement("cac:AccountingCustomerParty");
-    $customerParty = $dom->createElement("cac:Party");
-    $partyIdentification = $dom->createElement("cac:PartyIdentification");
-    $partyID = $dom->createElement("cbc:ID", $invoice_data['PARTYIDENTIFICATION']);
-    $partyID->setAttribute("schemeID",  $invoice_data['SCHEMETYPE']);
-    $partyIdentification->appendChild($partyID);
-    $customerParty->appendChild($partyIdentification);
-    $customerPostalAddress = $dom->createElement("cac:PostalAddress");
-    $custPostalZone = $dom->createElement("cbc:PostalZone");
-    $custPostalZone->appendChild($dom->createTextNode(htmlspecialchars($invoice_data['COUNTRYSUBENTITYCODE'])));
-    $customerPostalAddress->appendChild($custPostalZone);
-    $CountrySubentityCode = $dom->createElement("cbc:CountrySubentityCode", htmlspecialchars($invoice_data['COUNTRYSUBENTITYCODE']));
-    $customerPostalAddress->appendChild($CountrySubentityCode);
-    $custCountry = $dom->createElement("cac:Country");
-    $custCountryCode = $dom->createElement("cbc:IdentificationCode", "JO");
-    $custCountry->appendChild($custCountryCode);
-    $customerPostalAddress->appendChild($custCountry);
-    $customerParty->appendChild($customerPostalAddress);
-    $customerTaxScheme = $dom->createElement("cac:PartyTaxScheme");
-    $customerCompanyID = $dom->createElement("cbc:CompanyID", htmlspecialchars($invoice_data['COMP_NO']));
-    $customerTaxScheme->appendChild($customerCompanyID);
-    $customerTaxSchemeType = $dom->createElement("cac:TaxScheme");
-    $customerTaxSchemeTypeID = $dom->createElement("cbc:ID", "VAT");
-    $customerTaxSchemeType->appendChild($customerTaxSchemeTypeID);
-    $customerTaxScheme->appendChild($customerTaxSchemeType);
-    $customerParty->appendChild($customerTaxScheme);
-    $customerLegalEntity = $dom->createElement("cac:PartyLegalEntity");
-    $customerRegName = $dom->createElement("cbc:RegistrationName", htmlspecialchars($invoice_data['REGISTRATIONNAMESELLER']));
-    $customerLegalEntity->appendChild($customerRegName);
-    $customerParty->appendChild($customerLegalEntity);
-    $customer->appendChild($customerParty);
-    $accountingContact = $dom->createElement("cac:AccountingContact");
-    $telephone = $dom->createElement("cbc:Telephone", htmlspecialchars($invoice_data['TELEPHONE']));
-    $accountingContact->appendChild($telephone);
-    $customer->appendChild($accountingContact);
-    $invoice->appendChild($customer);
-    $sellerSupplier = $dom->createElement("cac:SellerSupplierParty");
-    $sellerParty = $dom->createElement("cac:Party");
-    $sellerPartyIdentification = $dom->createElement("cac:PartyIdentification");
-    $sellerID = $dom->createElement("cbc:ID", "16405625");
-    $sellerPartyIdentification->appendChild($sellerID);
-    $sellerParty->appendChild($sellerPartyIdentification);
-    $sellerSupplier->appendChild($sellerParty);
-    $invoice->appendChild($sellerSupplier);
-    $allowanceCharge = $dom->createElement("cac:AllowanceCharge");
-    $chargeIndicator = $dom->createElement("cbc:ChargeIndicator", "false");
-    $allowanceCharge->appendChild($chargeIndicator);
-    $chargeReason = $dom->createElement("cbc:AllowanceChargeReason", "discount");
-    $allowanceCharge->appendChild($chargeReason);
-    $chargeAmount = $dom->createElement("cbc:Amount",formatAmount($invoice_data['DISCOUNTAMOUNT']));
-    $chargeAmount->setAttribute("currencyID", "JO");
-    $allowanceCharge->appendChild($chargeAmount);
-    $invoice->appendChild($allowanceCharge);
-    $taxTotal = $dom->createElement("cac:TaxTotal");
-    $taxAmount = $dom->createElement("cbc:TaxAmount",formatAmount($invoice_data['TAXAMOUNT']));
-    $taxAmount->setAttribute("currencyID", "JO");
-    $taxTotal->appendChild($taxAmount);
-    $invoice->appendChild($taxTotal);
-    $monetaryTotal = $dom->createElement("cac:LegalMonetaryTotal");
-    $taxExclusiveAmount = $dom->createElement("cbc:TaxExclusiveAmount",formatAmount($invoice_data['TAXEXCLUSIVEAMOUNT']));
-    $taxExclusiveAmount->setAttribute("currencyID", "JO");
-    $monetaryTotal->appendChild($taxExclusiveAmount);
-    $taxInclusiveAmount = $dom->createElement("cbc:TaxInclusiveAmount",formatAmount($invoice_data['TAXINCLUSIVEAMOUNT']));
-    $taxInclusiveAmount->setAttribute("currencyID", "JO");
-    $monetaryTotal->appendChild($taxInclusiveAmount);
-    $allowanceTotalAmount = $dom->createElement("cbc:AllowanceTotalAmount", formatAmount($invoice_data['ALLOWANCETOTALAMOUNT']));
-    $allowanceTotalAmount->setAttribute("currencyID", "JO");
-    $monetaryTotal->appendChild($allowanceTotalAmount);
-    $payableAmount = $dom->createElement("cbc:PayableAmount",formatAmount($invoice_data['PAYABLEAMOUNT']));
-    $payableAmount->setAttribute("currencyID", "JO");
-    $monetaryTotal->appendChild($payableAmount);
-    $invoice->appendChild($monetaryTotal);
+  $dom = new DOMDocument("1.0", "UTF-8");
+$dom->formatOutput = true;
+	
+$invoice = $dom->createElement("Invoice");
+$invoice->setAttribute("xmlns", "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2");
+$invoice->setAttribute("xmlns:cac", "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2");
+$invoice->setAttribute("xmlns:cbc", "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2");
+$invoice->setAttribute("xmlns:ext", "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2");
+
+$invoice->appendChild($dom->createElement("cbc:ProfileID", "reporting:1.0"));
+$invoice->appendChild($dom->createElement("cbc:ID", htmlspecialchars($invoice_data['ID'])));
+$invoice->appendChild($dom->createElement("cbc:UUID", htmlspecialchars($invoice_data['UUID'])));
+$invoice->appendChild($dom->createElement("cbc:IssueDate", date('Y-m-d', strtotime($invoice_data['ISSUEDATE']))));
+
+$invoiceTypeCode = $dom->createElement("cbc:InvoiceTypeCode", $invoice_data['INVOICETYPECODE']);
+$invoiceTypeCode->setAttribute("name", $invoice_data['PRE_INVOICETYPECODE']);
+$invoice->appendChild($invoiceTypeCode);
+
+$invoice->appendChild($dom->createElement("cbc:Note", htmlspecialchars($invoice_data['NOTE'])));
+$invoice->appendChild($dom->createElement("cbc:DocumentCurrencyCode", "JOD"));
+$invoice->appendChild($dom->createElement("cbc:TaxCurrencyCode", "JOD"));
+
+$billingReference = $dom->createElement("cac:BillingReference");
+$invoiceDocumentReference = $dom->createElement("cac:InvoiceDocumentReference");
+$invoiceDocumentReference->appendChild($dom->createElement("cbc:ID", htmlspecialchars($invoice_data['REF_ID'] ?? "")));
+$invoiceDocumentReference->appendChild($dom->createElement("cbc:UUID", htmlspecialchars($invoice_data['REF_UUID'] ?? "")));
+$invoiceDocumentReference->appendChild($dom->createElement("cbc:DocumentDescription", htmlspecialchars($invoice_data['BILLING_DESCRIPTION'] ?? "950.0002")));
+$billingReference->appendChild($invoiceDocumentReference);
+$invoice->appendChild($billingReference);
+
+$additionalDocRef = $dom->createElement("cac:AdditionalDocumentReference");
+$additionalDocRef->appendChild($dom->createElement("cbc:ID", "ICV"));
+$additionalDocRef->appendChild($dom->createElement("cbc:UUID", htmlspecialchars($invoice_data['UUID'])));
+$invoice->appendChild($additionalDocRef);
+
+$supplier = $dom->createElement("cac:AccountingSupplierParty");
+$party = $dom->createElement("cac:Party");
+$postalAddress = $dom->createElement("cac:PostalAddress");
+$country = $dom->createElement("cac:Country");
+$country->appendChild($dom->createElement("cbc:IdentificationCode", "JO"));
+$postalAddress->appendChild($country);
+$party->appendChild($postalAddress);
+
+$taxScheme = $dom->createElement("cac:PartyTaxScheme");
+$taxScheme->appendChild($dom->createElement("cbc:CompanyID", htmlspecialchars($invoice_data['COMPANYID'])));
+$taxSchemeType = $dom->createElement("cac:TaxScheme");
+$taxSchemeType->appendChild($dom->createElement("cbc:ID", "VAT"));
+$taxScheme->appendChild($taxSchemeType);
+$party->appendChild($taxScheme);
+
+$legalEntity = $dom->createElement("cac:PartyLegalEntity");
+$legalEntity->appendChild($dom->createElement("cbc:RegistrationName", htmlspecialchars($invoice_data['REGISTRATIONNAMEBUYER'])));
+$party->appendChild($legalEntity);
+
+$supplier->appendChild($party);
+$invoice->appendChild($supplier);
+
+$customer = $dom->createElement("cac:AccountingCustomerParty");
+$customerParty = $dom->createElement("cac:Party");
+$postalAddress = $dom->createElement("cac:PostalAddress");
+$country = $dom->createElement("cac:Country");
+$country->appendChild($dom->createElement("cbc:IdentificationCode", "JO"));
+$postalAddress->appendChild($country);
+$customerParty->appendChild($postalAddress);
+
+$taxScheme = $dom->createElement("cac:PartyTaxScheme");
+$taxSchemeType = $dom->createElement("cac:TaxScheme");
+$taxSchemeType->appendChild($dom->createElement("cbc:ID", "VAT"));
+$taxScheme->appendChild($taxSchemeType);
+$customerParty->appendChild($taxScheme);
+
+$legalEntity = $dom->createElement("cac:PartyLegalEntity");
+$regName = htmlspecialchars($invoice_data['REGISTRATIONNAMESELLER'] ?? '');
+if (!empty($regName)) {
+    $legalEntity->appendChild($dom->createElement("cbc:RegistrationName", $regName));
+}
+$customerParty->appendChild($legalEntity);
+
+$customer->appendChild($customerParty);
+$invoice->appendChild($customer);
+
+$sellerSupplier = $dom->createElement("cac:SellerSupplierParty");
+$sellerParty = $dom->createElement("cac:Party");
+$partyIdentification = $dom->createElement("cac:PartyIdentification");
+$partyIdentification->appendChild($dom->createElement("cbc:ID", "16405625")); 
+$sellerParty->appendChild($partyIdentification);
+$sellerSupplier->appendChild($sellerParty);
+$invoice->appendChild($sellerSupplier);
+
+$paymentMeans = $dom->createElement("cac:PaymentMeans");
+$paymentMeansCode = $dom->createElement("cbc:PaymentMeansCode", "10");
+$paymentMeansCode->setAttribute("listID", "UN/ECE 4461");
+$paymentMeans->appendChild($paymentMeansCode);
+$instructionNote = $dom->createElement("cbc:InstructionNote", htmlspecialchars($invoice_data['INSTRUCTION_NOTE'] ?? "change price"));
+$paymentMeans->appendChild($instructionNote);
+$invoice->appendChild($paymentMeans);
+
+// AllowanceCharge
+$allowanceCharge = $dom->createElement("cac:AllowanceCharge");
+$allowanceCharge->appendChild($dom->createElement("cbc:ChargeIndicator", "false"));
+$allowanceCharge->appendChild($dom->createElement("cbc:AllowanceChargeReason", "discount"));
+$amount = $dom->createElement("cbc:Amount", formatAmount($invoice_data['DISCOUNTAMOUNT']));
+$amount->setAttribute("currencyID", "JO");
+$allowanceCharge->appendChild($amount);
+$invoice->appendChild($allowanceCharge);
+
+// TaxTotal1
+ $TaxTotal = $dom->createElement("cac:TaxTotal");
+
+// عنصر TaxAmount الأساسي
+$taxAmount = $dom->createElement("cbc:TaxAmount", htmlspecialchars($invoice_data['TAXAMOUNT']));
+$taxAmount->setAttribute("currencyID", "JO");
+$TaxTotal->appendChild($taxAmount);
+
+// عنصر TaxSubtotal
+$TaxSubtotal = $dom->createElement("cac:TaxSubtotal");
+
+// TaxableAmount
+$TaxableAmount = $dom->createElement("cbc:TaxableAmount", htmlspecialchars($invoice_data['TAXAMOUNT']));
+$TaxableAmount->setAttribute("currencyID", "JO");
+$TaxSubtotal->appendChild($TaxableAmount);
+
+// TaxAmount داخل TaxSubtotal
+$TaxAmount = $dom->createElement("cbc:TaxAmount", htmlspecialchars($invoice_data['TAXAMOUNT']));
+$TaxAmount->setAttribute("currencyID", "JO");
+$TaxSubtotal->appendChild($TaxAmount);
+
+// TaxCategory
+$TaxCategory = $dom->createElement("cac:TaxCategory");
+
+// ID
+$categoryID = $dom->createElement("cbc:ID", $item_data['TAX_CATEGORY_ID'] ?? 'S');
+$categoryID->setAttribute("schemeID", "UN/ECE 5305");
+$categoryID->setAttribute("schemeAgencyID", "6");
+$TaxCategory->appendChild($categoryID);
+
+// Percent
+$taxPercent = $dom->createElement("cbc:Percent", "8");
+$TaxCategory->appendChild($taxPercent);
+
+// TaxScheme
+$TaxScheme = $dom->createElement("cac:TaxScheme");
+$TaxSchemeID = $dom->createElement("cbc:ID", "VAT");
+$TaxSchemeID->setAttribute("schemeID", "UN/ECE 5153");
+$TaxSchemeID->setAttribute("schemeAgencyID", "6");
+$TaxScheme->appendChild($TaxSchemeID);
+
+// ربط العناصر ببعضها
+$TaxCategory->appendChild($TaxScheme);
+$TaxSubtotal->appendChild($TaxCategory);
+$TaxTotal->appendChild($TaxSubtotal);
+
+$invoice->appendChild($TaxTotal);
+
+// LegalMonetaryTotal
+$monetaryTotal = $dom->createElement("cac:LegalMonetaryTotal");
+
+$taxExclusiveAmount = $dom->createElement("cbc:TaxExclusiveAmount", formatAmount($invoice_data['TAXEXCLUSIVEAMOUNT']));
+$taxExclusiveAmount->setAttribute("currencyID", "JO");
+$monetaryTotal->appendChild($taxExclusiveAmount);
+
+$taxInclusiveAmount = $dom->createElement("cbc:TaxInclusiveAmount", formatAmount($invoice_data['TAXINCLUSIVEAMOUNT']));
+$taxInclusiveAmount->setAttribute("currencyID", "JO");
+$monetaryTotal->appendChild($taxInclusiveAmount);
+
+$allowanceTotalAmount = $dom->createElement("cbc:AllowanceTotalAmount", formatAmount($invoice_data['ALLOWANCETOTALAMOUNT']));
+$allowanceTotalAmount->setAttribute("currencyID", "JO");
+$monetaryTotal->appendChild($allowanceTotalAmount);
+
+$PrepaidAmount = $dom->createElement("cbc:PrepaidAmount","0");
+$PrepaidAmount->setAttribute("currencyID", "JO");
+$monetaryTotal->appendChild($PrepaidAmount);
+
+$payableAmount = $dom->createElement("cbc:PayableAmount", formatAmount($invoice_data['PAYABLEAMOUNT']));
+$payableAmount->setAttribute("currencyID", "JO");
+$monetaryTotal->appendChild($payableAmount);
+
+$invoice->appendChild($monetaryTotal);
 
     while ($item_data = oci_fetch_assoc($item_stmt)) {
         $invoiceLine = $dom->createElement("cac:InvoiceLine");

@@ -1,0 +1,21 @@
+{
+    "EINV_RESULTS": {
+        "status": "ERROR",
+        "INFO": [],
+        "WARNINGS": [],
+        "ERRORS": [
+            {
+                "type": "ERROR",
+                "status": "ERROR",
+                "EINV_CODE": "XSD_INVALID",
+                "EINV_CATEGORY": "XSD validation",
+                "EINV_MESSAGE": "Schema validation failed; XML does not comply with UBL 2.1 standards per ISTD invoice regulations, ColumnNumber : 11, LineNumber : 80, message : cvc-complex-type.2.4.b: The content of element 'Invoice' is not complete. One of '{\"urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2\":InvoiceLine}' is expected."
+            }
+        ]
+    },
+    "EINV_STATUS": "NOT_SUBMITTED",
+    "EINV_SINGED_INVOICE": null,
+    "EINV_QR": null,
+    "EINV_NUM": null,
+    "EINV_INV_UUID": null
+}

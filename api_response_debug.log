@@ -1,0 +1,47 @@
+*   Trying 193.188.66.69:443...
+* Connected to backend.jofotara.gov.jo (193.188.66.69) port 443
+* ALPN: curl offers h2,http/1.1
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384
+* ALPN: server accepted h2
+* Server certificate:
+*  subject: CN=*.jofotara.gov.jo
+*  start date: Sep 18 00:00:00 2024 GMT
+*  expire date: Sep 17 23:59:59 2025 GMT
+*  issuer: C=US; O=DigiCert Inc; OU=www.digicert.com; CN=RapidSSL TLS RSA CA G1
+*  SSL certificate verify result: unable to get local issuer certificate (20), continuing anyway.
+* using HTTP/2
+* [HTTP/2] [1] OPENED stream for https://backend.jofotara.gov.jo/core/invoices/
+* [HTTP/2] [1] [:method: POST]
+* [HTTP/2] [1] [:scheme: https]
+* [HTTP/2] [1] [:authority: backend.jofotara.gov.jo]
+* [HTTP/2] [1] [:path: /core/invoices/]
+* [HTTP/2] [1] [accept: */*]
+* [HTTP/2] [1] [cookie: stickounet=b1d81bcc6c9a4675a629a4e997204f87|7480c8b0e4ce7933ee164081a50488f1]
+* [HTTP/2] [1] [client-id: b1d7548d-1]
+* [HTTP/2] [1] [secret-key: Gj5nS9wyYH]
+* [HTTP/2] [1] [content-type: application/xml]
+* [HTTP/2] [1] [content-length: 39]
+> POST /core/invoices/ HTTP/2
+Host: backend.jofotara.gov.jo
+Accept: */*
+Cookie: stickounet=b1d81bcc6c9a4675a629a4e997204f87|7480c8b0e4ce7933ee164081a50488f1
+Client-Id: b1d7548d-1
+Secret-Key: Gj5nS9wyYH
+Content-Type: application/xml
+Content-Length: 39
+
+* old SSL session ID is stale, removing
+< HTTP/2 403 
+< date: Wed, 09 Apr 2025 08:22:19 GMT
+< content-length: 0
+< x-content-type-options: nosniff
+< x-xss-protection: 1; mode=block
+< cache-control: no-store, max-age=0
+< pragma: no-cache
+< expires: 0
+< strict-transport-security: max-age=15724800; includeSubDomains
+< x-frame-options: DENY
+< server: hide
+< content-security-policy-report-only: Content-Security-Policy: frame-ancestors 'none';
+< 
+* Connection #0 to host backend.jofotara.gov.jo left intact

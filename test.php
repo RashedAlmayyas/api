@@ -113,7 +113,7 @@ while ($invoice_data = oci_fetch_assoc($stid)) {
     $sellerSupplier = $dom->createElement("cac:SellerSupplierParty");
     $sellerParty = $dom->createElement("cac:Party");
     $sellerPartyIdentification = $dom->createElement("cac:PartyIdentification");
-    $sellerID = $dom->createElement("cbc:ID", "202942");
+    $sellerID = $dom->createElement("cbc:ID", "2029421");
     $sellerPartyIdentification->appendChild($sellerID);
     $sellerParty->appendChild($sellerPartyIdentification);
     $sellerSupplier->appendChild($sellerParty);
@@ -243,36 +243,9 @@ while ($invoice_data = oci_fetch_assoc($stid)) {
     if ($response === false) {
         $error_message = "❌ فشل الاتصال بـ API: " . curl_error($ch);
     } else {
-          $responseData = json_decode($response, true);
-
-$jsonContent = file_get_contents('api_response_debug.json');
-if ($jsonContent === false) {
-    die("فشل في قراءة ملف JSON.");
-}
-
-$transId = $invoice_data['TRANS_ID']; 
-$clob = oci_new_descriptor($conn, OCI_D_LOB);
-if (!$clob) {
-    die("فشل في إنشاء CLOB Descriptor");
-}
-
-$sql5 = "BEGIN ERP.WEB_PKG.INSERT_API_TAX_INV_AUDIT(:P_TRANS_ID, :P_API_NOTE); END;";
-$stid5 = oci_parse($conn, $sql5);
-
-oci_bind_by_name($stid5, ":P_TRANS_ID", $transId);
-oci_bind_by_name($stid5, ":P_API_NOTE", $clob, -1, OCI_B_CLOB);
-
-$clob->writeTemporary($jsonContent, OCI_TEMP_CLOB);
-
-if (oci_execute($stid5, OCI_DEFAULT)) {
-    oci_commit($conn);
-} else {
-    $e = oci_error($stid5);
-    echo "❌ خطأ في التنفيذ: " . $e['message'];
-}
-
-$clob->free();
-oci_free_statement($stid5); 
+        $responseData = json_decode($response, true);
+        file_put_contents('api_response_debug.json', json_encode($responseData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));   
+        $transId = $invoice_data['TRANS_ID'];   
         
         if (
             isset($responseData['EINV_RESULTS']['status']) && 

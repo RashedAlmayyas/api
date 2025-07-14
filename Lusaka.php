@@ -172,7 +172,7 @@ while ($invoice_data = oci_fetch_assoc($stid)) {
         $categoryID->setAttribute("schemeAgencyID", "6");
         $categoryID->setAttribute("schemeID", "UN/ECE 5305");
         $taxCategory->appendChild($categoryID);
-        $taxPercent = $dom->createElement("cbc:Percent", formatAmount($item_data['PERCENT_TAX']));
+        $taxPercent = $dom->createElement("cbc:Percent", $item_data['PERCENT_TAX']);
         $taxCategory->appendChild($taxPercent);
         $taxScheme = $dom->createElement("cac:TaxScheme");
         $taxSchemeID = $dom->createElement("cbc:ID","VAT");
@@ -184,7 +184,9 @@ while ($invoice_data = oci_fetch_assoc($stid)) {
         $lineTaxTotal->appendChild($taxSubtotal);
         $invoiceLine->appendChild($lineTaxTotal);
         $itemElement = $dom->createElement("cac:Item");
-        $itemName = $dom->createElement("cbc:Name",$item_data['ITEMNAME']);
+$itemName = $dom->createElement("cbc:Name", htmlspecialchars($item_data['ITEMNAME'], ENT_XML1 | ENT_COMPAT, 'UTF-8'));
+       // $itemName = $dom->createElement("cbc:Name",$item_data['ITEMNAME']);
+
         $itemElement->appendChild($itemName);
         $invoiceLine->appendChild($itemElement);
         $price = $dom->createElement("cac:Price");
@@ -214,7 +216,7 @@ while ($invoice_data = oci_fetch_assoc($stid)) {
     $encodedXmlContent = base64_encode($xmlContent); 
     $clientId = "63498d0c-82f7-4074-9ece-0fad9908dd4f";
     $secretKey = "Gj5nS9wyYHRadaVffz5VKB4v4wlVWyPhcJvrTD4NHtPcaalaqazbh7tWMd/1wXgfeNz8nnU+3j+qRGuknjk4e3xO32+3T/Vww4cut/MO4lmNn5oVdBcdLUxwkOgKC4Zt7O3aiPXOMxezIfalJpNyyzLOHhC6DmT4fMbS9l0cF7Gu0jAflU+2zdWokUaYISFNIThXyfNoGH2kzYU2CzTCPtDRVh5ssZmEPczeDCk74UOCXB3sOuU3aALART+wjYTUhk4yXr4en0n+0B8k1qRx9Q==";
-    $ch = curl_init("https://backend.jofotara.gov.jo/core/invoices/");
+     $ch = curl_init("https://backend.jofotara.gov.jo/core/invoices/");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 3000);
@@ -243,9 +245,36 @@ while ($invoice_data = oci_fetch_assoc($stid)) {
     if ($response === false) {
         $error_message = "❌ فشل الاتصال بـ API: " . curl_error($ch);
     } else {
-        $responseData = json_decode($response, true);
-        file_put_contents('api_response_debug.json', json_encode($responseData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));   
-        $transId = $invoice_data['TRANS_ID'];   
+                $responseData = json_decode($response, true);
+
+$jsonContent = file_get_contents('api_response_debug.json');
+if ($jsonContent === false) {
+    die("فشل في قراءة ملف JSON.");
+}
+
+$transId = $invoice_data['TRANS_ID']; 
+$clob = oci_new_descriptor($conn, OCI_D_LOB);
+if (!$clob) {
+    die("فشل في إنشاء CLOB Descriptor");
+}
+
+$sql5 = "BEGIN ERP.WEB_PKG.INSERT_API_TAX_INV_AUDIT(:P_TRANS_ID, :P_API_NOTE); END;";
+$stid5 = oci_parse($conn, $sql5);
+
+oci_bind_by_name($stid5, ":P_TRANS_ID", $transId);
+oci_bind_by_name($stid5, ":P_API_NOTE", $clob, -1, OCI_B_CLOB);
+
+$clob->writeTemporary($jsonContent, OCI_TEMP_CLOB);
+
+if (oci_execute($stid5, OCI_DEFAULT)) {
+    oci_commit($conn);
+} else {
+    $e = oci_error($stid5);
+    echo "❌ خطأ في التنفيذ: " . $e['message'];
+}
+
+$clob->free();
+oci_free_statement($stid5); 
         if (
             isset($responseData['EINV_RESULTS']['status']) && 
             $responseData['EINV_RESULTS']['status'] === 'PASS' &&
@@ -258,14 +287,26 @@ while ($invoice_data = oci_fetch_assoc($stid)) {
             $success_message = "✅ تم إرسال الفاتورة بنجاح.";
             $qrValue1 = isset($responseData['EINV_QR']) ? $responseData['EINV_QR'] : '';
             $db_success_message = "✅ تم تحديث حالة الفاتورة في قاعدة البيانات بنجاح.";
-            if (!empty($qrValue1) && !empty($invoice_data['ID'])) {
+           
+                if (!empty($qrValue1) && !empty($invoice_data['ID'])) {
                 $invoiceId = $invoice_data['ID'];
-                $savePath = '//192.168.0.7/Invoice/tax_Lusaka/' . $invoiceId . '.jpg';
-                QRcode::png($qrValue1, $savePath, QR_ECLEVEL_H, 5);
-                echo "✅  saved . $invoiceId .";
-            } else {
-                echo "⚠️ woring";
+                $tempPngPath = '//192.168.0.7/Invoice/tax_Lusaka/' . $invoiceId . '.png';
+                $finalJpgPath = '//192.168.0.7/Invoice/tax_Lusaka/' . $invoiceId . '.jpg';
+                QRcode::png($qrValue1, $tempPngPath, QR_ECLEVEL_H, 5);
+                $image = imagecreatefrompng($tempPngPath);
+                if ($image !== false) {
+                    imagejpeg($image, $finalJpgPath, 100); 
+                    imagedestroy($image);
+            
+                   
+                    unlink($tempPngPath);
+            
+                    echo "✅ تم حفظ QR بصيغة JPG: $finalJpgPath";
+                } else {
+                    echo "❌ فشل في تحميل صورة PNG المؤقتة.";
+                }
             }
+           
            $sql = 'BEGIN ERP.WEB_PKG.UPDATE_TAX_INVOICE_API_FLAG(:P_TRANS_ID); END;';
             $stmt = oci_parse($conn, $sql);
             oci_bind_by_name($stmt, ':P_TRANS_ID', $transId);

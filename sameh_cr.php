@@ -1,6 +1,6 @@
 <?php
 require_once 'phpqrcode/qrlib.php'; 
-$connection_string = "192.168.0.35:1521/ORCL2"; 
+$connection_string = "192.168.0.10:1521/ORCL2"; 
 $username = "WEB_USER";
 $password = "WEB_DEV$02";
 $conn = oci_connect($username, $password, $connection_string, 'AL32UTF8'); 
@@ -243,10 +243,36 @@ while ($invoice_data = oci_fetch_assoc($stid)) {
     if ($response === false) {
         $error_message = "❌ فشل الاتصال بـ API: " . curl_error($ch);
     } else {
-        $responseData = json_decode($response, true);
-        file_put_contents('api_response_debug.json', json_encode($responseData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));   
-        $transId = $invoice_data['TRANS_ID'];   
-        if (
+       $responseData = json_decode($response, true);
+
+$jsonContent = file_get_contents('api_response_debug.json');
+if ($jsonContent === false) {
+    die("فشل في قراءة ملف JSON.");
+}
+
+$transId = $invoice_data['TRANS_ID']; 
+$clob = oci_new_descriptor($conn, OCI_D_LOB);
+if (!$clob) {
+    die("فشل في إنشاء CLOB Descriptor");
+}
+
+$sql5 = "BEGIN ERP.WEB_PKG.INSERT_API_TAX_INV_AUDIT(:P_TRANS_ID, :P_API_NOTE); END;";
+$stid5 = oci_parse($conn, $sql5);
+
+oci_bind_by_name($stid5, ":P_TRANS_ID", $transId);
+oci_bind_by_name($stid5, ":P_API_NOTE", $clob, -1, OCI_B_CLOB);
+
+$clob->writeTemporary($jsonContent, OCI_TEMP_CLOB);
+
+if (oci_execute($stid5, OCI_DEFAULT)) {
+    oci_commit($conn);
+} else {
+    $e = oci_error($stid5);
+    echo "❌ خطأ في التنفيذ: " . $e['message'];
+}
+
+$clob->free();
+oci_free_statement($stid5);     if (
             isset($responseData['EINV_RESULTS']['status']) && 
             $responseData['EINV_RESULTS']['status'] === 'PASS' &&
             isset($responseData['EINV_STATUS']) &&
@@ -258,14 +284,26 @@ while ($invoice_data = oci_fetch_assoc($stid)) {
             $success_message = "✅ تم إرسال الفاتورة بنجاح.";
             $qrValue1 = isset($responseData['EINV_QR']) ? $responseData['EINV_QR'] : '';
             $db_success_message = "✅ تم تحديث حالة الفاتورة في قاعدة البيانات بنجاح.";
-            if (!empty($qrValue1) && !empty($invoice_data['ID'])) {
+
+                 if (!empty($qrValue1) && !empty($invoice_data['ID'])) {
                 $invoiceId = $invoice_data['ID'];
-                $savePath = '//192.168.0.7/Invoice/tax_sameh/' . $invoiceId . '.jpg';
-                QRcode::png($qrValue1, $savePath, QR_ECLEVEL_H, 5);
-                echo "✅  saved . $invoiceId .";
-            } else {
-                echo "⚠️ woring";
+                $tempPngPath = '//192.168.0.7/Invoice/tax_sameh/' . $invoiceId . '.png';
+                $finalJpgPath = '//192.168.0.7/Invoice/tax_sameh/' . $invoiceId . '.jpg';
+                QRcode::png($qrValue1, $tempPngPath, QR_ECLEVEL_H, 5);
+                $image = imagecreatefrompng($tempPngPath);
+                if ($image !== false) {
+                    imagejpeg($image, $finalJpgPath, 100); 
+                    imagedestroy($image);
+            
+                   
+                    unlink($tempPngPath);
+            
+                    echo "✅ تم حفظ QR بصيغة JPG: $finalJpgPath";
+                } else {
+                    echo "❌ فشل في تحميل صورة PNG المؤقتة.";
+                }
             }
+           
            $sql = 'BEGIN ERP.WEB_PKG.UPDATE_TAX_INVOICE_API_FLAG(:P_TRANS_ID); END;';
             $stmt = oci_parse($conn, $sql);
             oci_bind_by_name($stmt, ':P_TRANS_ID', $transId);

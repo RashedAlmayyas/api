@@ -1,6 +1,6 @@
 <?php
 require_once 'phpqrcode/qrlib.php'; 
-$connection_string = "192.168.0.10:1521/ORCL2"; 
+$connection_string = "192.168.0.15:1521/ERPSAMEH"; 
 $username = "WEB_USER";
 $password = "WEB_DEV$02";
 $conn = oci_connect($username, $password, $connection_string, 'AL32UTF8'); 
@@ -11,12 +11,12 @@ if (!$conn) {
    function formatAmount($value) {
         return number_format((float)$value, 9, '.', '');
     }
-$query = "SELECT * FROM WEB_SALES_TAX_INVOICE_VIEW WHERE COMP_NO=1 ORDER BY ID";
+$query = "SELECT * FROM WEB_CR_SALES_TAX_INVOICE_VIEW WHERE COMP_NO=1 ORDER BY ID";
 $stid = oci_parse($conn, $query);
 oci_execute($stid);
 while ($invoice_data = oci_fetch_assoc($stid)) {
     $header_id = $invoice_data['ID'];     
-    $queryItems = "SELECT * FROM WEB_SALES_TAX_INVOICE_DTL_VIEW WHERE COMP_NO=1 AND HEADER_ID=:header_id";
+    $queryItems = "SELECT * FROM WEB_CR_SALES_TAX_INV_DTL_VIEW WHERE COMP_NO=1 AND HEADER_ID=:header_id";
     $item_stmt = oci_parse($conn, $queryItems);
     oci_bind_by_name($item_stmt, ":header_id", $header_id);
     oci_execute($item_stmt);
@@ -113,7 +113,7 @@ while ($invoice_data = oci_fetch_assoc($stid)) {
     $sellerSupplier = $dom->createElement("cac:SellerSupplierParty");
     $sellerParty = $dom->createElement("cac:Party");
     $sellerPartyIdentification = $dom->createElement("cac:PartyIdentification");
-    $sellerID = $dom->createElement("cbc:ID", "202942");
+    $sellerID = $dom->createElement("cbc:ID", "18563813");
     $sellerPartyIdentification->appendChild($sellerID);
     $sellerParty->appendChild($sellerPartyIdentification);
     $sellerSupplier->appendChild($sellerParty);
@@ -212,8 +212,8 @@ while ($invoice_data = oci_fetch_assoc($stid)) {
     
     $dom->save("invoices/" . $filename);
     $encodedXmlContent = base64_encode($xmlContent); 
-    $clientId = "b1d7548d-191c-4343-b0f5-0c0e3fa128a3";
-    $secretKey = "Gj5nS9wyYHRadaVffz5VKB4v4wlVWyPhcJvrTD4NHtPvwBVLwYycGApVuAfyISBNTXd4ce2a7R6Cjvw9hnJs/v/TVHP+JjcBlc+bfPV98sVohXI82ICIhUw/nvnFCmY8eu0OVYvLuKi4RmFk0ayC8GBfX/wNSQUA47VX/aQdSioBr/QGpes2bnyNHuC4rgx90poioCvwi6avMVoUgybHupSoBRYeooSkrvSs6mmgX+m1x62r8DzFDCqQR8hez7gkZAO0r6yD+2dSwEanh+DyJA==";
+    $clientId = "20439375-c196-4acf-a4bc-34a74bfc972f";
+    $secretKey = "Gj5nS9wyYHRadaVffz5VKB4v4wlVWyPhcJvrTD4NHtNPxzpbQNxPEkK8FsqNphqBaHWodcu9k/HTsR0RIAgw/FksgwXQ/wGH2uV/+CmaCtWYQ890QxAbUBSkmTbaFAIVkavZoBORcemK4M2q+Z7e1/KgFKJxudy/bKtlBFxgUQeGxY+XA3YZ7Xx+4+/VVMxFV5IGr4RKI4S5/cYreMP8Kp4DXK/ZtLvzOwbvqDPBz/lHAvJ58ZZL08kCK3oS4ZH2nxmV/1CwHMCg+anokYE3yg==";
     $ch = curl_init("https://backend.jofotara.gov.jo/core/invoices/");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
@@ -243,7 +243,7 @@ while ($invoice_data = oci_fetch_assoc($stid)) {
     if ($response === false) {
         $error_message = "❌ فشل الاتصال بـ API: " . curl_error($ch);
     } else {
-          $responseData = json_decode($response, true);
+      $responseData = json_decode($response, true);
 
 $jsonContent = file_get_contents('api_response_debug.json');
 if ($jsonContent === false) {
@@ -272,8 +272,7 @@ if (oci_execute($stid5, OCI_DEFAULT)) {
 }
 
 $clob->free();
-oci_free_statement($stid5); 
-        
+oci_free_statement($stid5);  
         if (
             isset($responseData['EINV_RESULTS']['status']) && 
             $responseData['EINV_RESULTS']['status'] === 'PASS' &&
@@ -286,11 +285,11 @@ oci_free_statement($stid5);
             $success_message = "✅ تم إرسال الفاتورة بنجاح.";
             $qrValue1 = isset($responseData['EINV_QR']) ? $responseData['EINV_QR'] : '';
             $db_success_message = "✅ تم تحديث حالة الفاتورة في قاعدة البيانات بنجاح.";
-               
-            if (!empty($qrValue1) && !empty($invoice_data['ID'])) {
+
+                 if (!empty($qrValue1) && !empty($invoice_data['ID'])) {
                 $invoiceId = $invoice_data['ID'];
-                $tempPngPath = '//192.168.0.7/Invoice/tax_sameh/' . $invoiceId . '.png';
-                $finalJpgPath = '//192.168.0.7/Invoice/tax_sameh/' . $invoiceId . '.jpg';
+                $tempPngPath = '//192.168.0.7/Invoice/tax_loc_sameh/' . $invoiceId . '.png';
+                $finalJpgPath = '//192.168.0.7/Invoice/tax_loc_sameh/' . $invoiceId . '.jpg';
                 QRcode::png($qrValue1, $tempPngPath, QR_ECLEVEL_H, 5);
                 $image = imagecreatefrompng($tempPngPath);
                 if ($image !== false) {
